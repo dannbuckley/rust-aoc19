@@ -4,7 +4,7 @@ The droids have finished repairing as much of the ship as they can. Their report
 
 You'll need to **rebuild the network from scratch**.
 
-The computers on the network are standard [Intcode]() computers that communicate by sending **packets** to each other. There are `50` of them in total, each running a copy of the same **Network Interface Controller** (NIC) software (your puzzle input). The computers have **network addresses** `0` through `49`; when each computer boots up, it will request its network address via a single input instruction. Be sure to give each computer a unique network address.
+The computers on the network are standard [Intcode](https://github.com/dannbuckley/rust-aoc19/tree/master/day9) computers that communicate by sending **packets** to each other. There are `50` of them in total, each running a copy of the same **Network Interface Controller** (NIC) software (your puzzle input). The computers have **network addresses** `0` through `49`; when each computer boots up, it will request its network address via a single input instruction. Be sure to give each computer a unique network address.
 
 Once a computer has received its network address, it will begin doing work and communicating over the network by sending and receiving **packets**. All packets contain **two values** named `X` and `Y`. Packets sent to a computer are queued by the recipient and read in the order they are received.
 

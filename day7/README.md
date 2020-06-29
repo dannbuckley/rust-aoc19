@@ -10,7 +10,7 @@ There are five amplifiers connected in series; each one receives an input signal
     O-------O  O-------O  O-------O  O-------O  O-------O
 ```
 
-The Elves have sent you some **Amplifier Controller Software** (your puzzle input), a program that should run on your [existing Intcode computer](). Each amplifier will need to run a copy of the program.
+The Elves have sent you some **Amplifier Controller Software** (your puzzle input), a program that should run on your [existing Intcode computer](https://github.com/dannbuckley/rust-aoc19/tree/master/day5). Each amplifier will need to run a copy of the program.
 
 When a copy of the program starts running on an amplifier, it will first use an input instruction to ask the amplifier for its current **phase setting** (an integer from `0` to `4`). Each phase setting is used **exactly once**, but the Elves can't remember which amplifier needs which phase setting.
 

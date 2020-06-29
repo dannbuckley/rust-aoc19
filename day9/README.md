@@ -6,7 +6,7 @@ In order to lock on to the signal, you'll need to boost your sensors. The Elves 
 
 While BOOST (your puzzle input) is capable of boosting your sensors, for tenuous safety reasons, it refuses to do so until the computer it runs on passes some checks to demonstrate it is a **complete Intcode computer**.
 
-[Your existing Intcode computer]() is missing one key feature: it needs support for parameters in **relative mode**.
+[Your existing Intcode computer](https://github.com/dannbuckley/rust-aoc19/tree/master/day5) is missing one key feature: it needs support for parameters in **relative mode**.
 
 Parameters in mode `2`, **relative mode**, behave very similarly to parameters in **position mode**: the parameter is interpreted as a position. Like position mode, parameters in relative mode can be read from or written to.
 

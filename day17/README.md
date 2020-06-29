@@ -4,7 +4,7 @@ An early warning system detects an incoming [solar flare](https://en.wikipedia.o
 
 The only tools at your disposal are some wired cameras and a small vacuum robot currently asleep at its charging station. The video quality is poor, but the vacuum robot has a needlessly bright LED that makes it easy to spot no matter where it is.
 
-An [Intcode]() program, the **Aft Scaffolding Control and Information Interface** (ASCII, your puzzle input), provides access to the cameras and the vacuum robot. Currently, because the vacuum robot is asleep, you can only access the cameras.
+An [Intcode](https://github.com/dannbuckley/rust-aoc19/tree/master/day9) program, the **Aft Scaffolding Control and Information Interface** (ASCII, your puzzle input), provides access to the cameras and the vacuum robot. Currently, because the vacuum robot is asleep, you can only access the cameras.
 
 Running the ASCII program on your Intcode computer will provide the current view of the scaffolds. This is output, purely coincidentally, as [ASCII code](https://simple.wikipedia.org/wiki/ASCII): `35` means `#`, `46` means `.`, `10` starts a [new line](https://en.wikipedia.org/wiki/Newline#In_programming_languages) of output below the current one, and so on. (Within a line, characters are drawn left-to-right.)
 

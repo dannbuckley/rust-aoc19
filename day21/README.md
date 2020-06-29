@@ -8,7 +8,7 @@ You can send a droid out to investigate, but the tumbling is causing enough [art
 
 The clear choice for this mission is a droid that can **jump** over the holes in the hull - a **springdroid**.
 
-You can use an [Intcode]() program (your puzzle input) running on an [ASCII-capable]() computer to [program](https://en.wikipedia.org/wiki/Programmable_read-only_memory) the springdroid. However, springdroids don't run Intcode; instead, they run a simplified assembly language called **springscript**.
+You can use an [Intcode](https://github.com/dannbuckley/rust-aoc19/tree/master/day9) program (your puzzle input) running on an [ASCII-capable](https://github.com/dannbuckley/rust-aoc19/tree/master/day17) computer to [program](https://en.wikipedia.org/wiki/Programmable_read-only_memory) the springdroid. However, springdroids don't run Intcode; instead, they run a simplified assembly language called **springscript**.
 
 While a springdroid is certainly capable of navigating the artificial gravity and giant holes, it has one downside: it can only remember at most **15** springscript instructions.
 
