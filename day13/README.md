@@ -14,4 +14,4 @@ The arcade cabinet runs [Intcode](https://github.com/dannbuckley/rust-aoc19/tree
 
 For example, a sequence of output values like `1,2,3,6,5,4` would draw a **horizontal paddle** tile (`1` tile from the left and `2` tiles from the top) and a **ball** tile (`6` tiles from the left and `5` tiles from the top).
 
-Start the game. *How many block tiles are on the screen when the game exits?**
+Start the game. **How many block tiles are on the screen when the game exits?**
