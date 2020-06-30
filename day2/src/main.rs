@@ -17,7 +17,7 @@ impl IntcodeProgram {
         let mut ip: usize = 0;
         loop {
             if self.data[ip] == 99 {
-                // break on exit oipode
+                // break on exit opcode
                 break;
             }
 
