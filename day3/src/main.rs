@@ -16,8 +16,25 @@ struct WireSegment {
     /// For horiz. segments: v = y;
     /// for vert. segments: v = x
     v: i32,
+    /// Direction of line segment
+    ///
+    /// For horiz. segments: true = right, false = left;
+    /// For vert. segments: true = up, false = down;
+    direction: bool,
+    /// Steps required to reach beginning of line segment
+    ///
+    /// For horiz. segments: beginning = (direction ? u_range.0 : u_range.1, v);
+    /// For vert. segments: beginning = (v, direction ? u_range.0 : u_range.1)
+    steps_to_segment: u32,
 }
 
+/// Returns true if the value s falls within the bounds of range
+fn value_in_range(range: (i32, i32), s: i32) -> bool {
+    s >= range.0 && s <= range.1
+}
+
+/// Finds all crossings between the given vertical and horizontal
+/// set of WireSegment objects
 fn find_crossings(v: &Vec<WireSegment>, h: &Vec<WireSegment>) -> Vec<(i32, i32)> {
     let mut crossings: Vec<(i32, i32)> = Vec::<(i32, i32)>::new();
 
@@ -33,7 +50,7 @@ fn find_crossings(v: &Vec<WireSegment>, h: &Vec<WireSegment>) -> Vec<(i32, i32)>
 
         // check all horiz. segments in range of current vert. segment
         while j < h.len() && h[j].v <= v[i].u_range.1 {
-            if v[i].v >= h[j].u_range.0 && v[i].v <= h[j].u_range.1 {
+            if value_in_range(h[j].u_range, v[i].v) {
                 // ignore crossing at starting location
                 if v[i].v != 0 && h[j].v != 0 {
                     crossings.push((v[i].v, h[j].v));
@@ -46,8 +63,49 @@ fn find_crossings(v: &Vec<WireSegment>, h: &Vec<WireSegment>) -> Vec<(i32, i32)>
     crossings
 }
 
+/// Finds the number of steps required to reach the given intersection point
+///
+/// If set is of horiz. segments, orient = true;
+/// If set is of vert. segments, orient = false
+fn find_steps_to_point(point: (i32, i32), set: &Vec<WireSegment>, orient: bool) -> u32 {
+    let mut steps: u32 = 0;
+    if orient {
+        // searching for horiz. segment
+        for i in 0..set.len() {
+            if point.1 == set[i].v && value_in_range(set[i].u_range, point.0) {
+                steps = set[i].steps_to_segment;
+                if set[i].direction {
+                    // segment going right
+                    steps += (point.0 - set[i].u_range.0) as u32;
+                } else {
+                    // segment going left
+                    steps += (set[i].u_range.1 - point.0) as u32;
+                }
+                break;
+            }
+        }
+    } else {
+        // searching for vert. segment
+        for i in 0..set.len() {
+            if point.0 == set[i].v && value_in_range(set[i].u_range, point.1) {
+                steps = set[i].steps_to_segment;
+                if set[i].direction {
+                    // segment going up
+                    steps += (point.1 - set[i].u_range.0) as u32;
+                } else {
+                    // segment going down
+                    steps += (set[i].u_range.1 - point.1) as u32;
+                }
+                break;
+            }
+        }
+    }
+
+    steps
+}
+
 /// Represents a wire component,
-/// separated into its horizantal and vertical components
+/// separated into its horizontal and vertical components
 #[derive(Debug)]
 struct Wire {
     /// Horizontal line segments
@@ -75,6 +133,7 @@ impl Wire {
     /// Builds a Wire object from the given string of path data
     fn build_from_string(data: String) -> Wire {
         let mut pos: (i32, i32) = (0, 0);
+        let mut steps: u32 = 0;
         let mut h_segs: Vec<WireSegment> = Vec::<WireSegment>::new();
         let mut v_segs: Vec<WireSegment> = Vec::<WireSegment>::new();
 
@@ -92,6 +151,8 @@ impl Wire {
                 h_segs.push(WireSegment {
                     u_range: (pos.0 - len as i32, pos.0),
                     v: pos.1,
+                    direction: false,
+                    steps_to_segment: steps,
                 });
                 // update position
                 pos.0 -= len as i32;
@@ -100,6 +161,8 @@ impl Wire {
                 h_segs.push(WireSegment {
                     u_range: (pos.0, pos.0 + len as i32),
                     v: pos.1,
+                    direction: true,
+                    steps_to_segment: steps,
                 });
                 // update position
                 pos.0 += len as i32;
@@ -108,6 +171,8 @@ impl Wire {
                 v_segs.push(WireSegment {
                     u_range: (pos.1, pos.1 + len as i32),
                     v: pos.0,
+                    direction: true,
+                    steps_to_segment: steps,
                 });
                 // update position
                 pos.1 += len as i32;
@@ -116,10 +181,15 @@ impl Wire {
                 v_segs.push(WireSegment {
                     u_range: (pos.1 - len as i32, pos.1),
                     v: pos.0,
+                    direction: false,
+                    steps_to_segment: steps,
                 });
                 // update position
                 pos.1 -= len as i32;
             }
+
+            // update number of steps taken
+            steps += len;
         }
 
         // sort horiz. segments by y-value
@@ -145,6 +215,35 @@ impl Wire {
 
         // return all crossing points
         points
+    }
+
+    /// Finds the smallest combination of steps required to reach an
+    /// intersection on this and the given wire
+    fn find_min_steps(&self, other: &Wire) -> u32 {
+        let mut min_steps: u32 = 0;
+
+        let cross_a = find_crossings(&self.v_segs, &other.h_segs);
+        for crossing in cross_a {
+            let total_steps = find_steps_to_point(crossing, &self.v_segs, false)
+                + find_steps_to_point(crossing, &other.h_segs, true);
+            if min_steps == 0 {
+                // ignore comparison for first point
+                min_steps = total_steps;
+            } else if total_steps < min_steps {
+                min_steps = total_steps;
+            }
+        }
+
+        let cross_b = find_crossings(&other.v_segs, &self.h_segs);
+        for crossing in cross_b {
+            let total_steps = find_steps_to_point(crossing, &other.v_segs, false)
+                + find_steps_to_point(crossing, &self.h_segs, true);
+            if total_steps < min_steps {
+                min_steps = total_steps;
+            }
+        }
+
+        min_steps
     }
 }
 
@@ -215,6 +314,13 @@ fn main() {
         min_ham_1
     );
 
+    let min_steps_1 = test_first_1.find_min_steps(&test_second_1);
+    assert_eq!(min_steps_1, 30);
+    println!(
+        "\tMin. number of steps for pair #1: {} (should be 30)",
+        min_steps_1
+    );
+
     // run second test pair
     println!("Running test pair #2:");
     let test_first_2 = Wire::build_from_string("R75,D30,R83,U83,L12,D49,R71,U7,L72".to_owned());
@@ -225,6 +331,12 @@ fn main() {
     println!(
         "\tMin. hamming dist. of pair #2: {} (should be 159)",
         min_ham_2
+    );
+    let min_steps_2 = test_first_2.find_min_steps(&test_second_2);
+    assert_eq!(min_steps_2, 610);
+    println!(
+        "\tMin. number of steps for pair #2: {} (should be 610)",
+        min_steps_2
     );
 
     // run third test pair
@@ -238,6 +350,12 @@ fn main() {
     println!(
         "\tMin. hamming dist. of pair #3: {} (should be 135)",
         min_ham_3
+    );
+    let min_steps_3 = test_first_3.find_min_steps(&test_second_3);
+    assert_eq!(min_steps_3, 410);
+    println!(
+        "\tMin. number of steps for pair #3: {} (should be 410)",
+        min_steps_3
     );
 
     // read problem input file
@@ -256,4 +374,8 @@ fn main() {
     let prob_points = prob_first.find_intersection_points(&prob_second);
     let prob_min_ham = find_min_hamming_dist(&prob_points);
     println!("Min. hamming distance for problem input: {}", prob_min_ham);
+
+    // find minimum number of steps
+    let prob_min_steps = prob_first.find_min_steps(&prob_second);
+    println!("Min. number of steps for problem input: {}", prob_min_steps);
 }
