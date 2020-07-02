@@ -5,23 +5,31 @@ use std::vec::Vec;
 #[derive(Debug)]
 struct IntcodeOperation {
   /// Opcode of current operation
-  /// 
-  /// Add: 1
-  /// Multiply: 2
-  /// Get input: 3
-  /// Print value: 4
+  ///
+  /// Add: 1;
+  /// Multiply: 2;
+  /// Get input: 3;
+  /// Print value: 4;
+  /// Jump-if-true: 5;
+  /// Jump-if-false: 6;
+  /// Less than: 7;
+  /// Equals: 8;
   /// Exit: 99
   opcode: u8,
   /// Length of current operation
-  /// 
-  /// Add: 4
-  /// Multiply: 4
-  /// Get input: 2
-  /// Print value: 2
-  /// Exit: 99
+  ///
+  /// Add: 4;
+  /// Multiply: 4;
+  /// Get input: 2;
+  /// Print value: 2;
+  /// Jump-if-true: 3;
+  /// Jump-if-false: 3;
+  /// Less than: 4;
+  /// Equals: 4;
+  /// Exit: 1
   len: usize,
   /// Modes of parameters for current operation
-  /// 
+  ///
   /// Position mode: 0
   /// Immediate mode: 1
   modes: Vec<u8>,
@@ -40,13 +48,14 @@ impl IntcodeOperation {
     }
 
     // check if opcode is valid
-    let valid_opcodes: Vec<u8> = vec![1, 2, 3, 4, 99];
+    let valid_opcodes: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 99];
     if !valid_opcodes.contains(&code) {
+      eprintln!("Invalid opcode: {}", code);
       return Err("Opcode is not valid.");
     }
 
     // create map of operation lengths
-    let valid_lens: Vec<usize> = vec![4, 4, 2, 2, 1];
+    let valid_lens: Vec<usize> = vec![4, 4, 2, 2, 3, 3, 4, 4, 1];
     let opcode_lens: HashMap<_, _> = valid_opcodes.iter().zip(valid_lens.iter()).collect();
 
     // extract parameter modes from operation value
@@ -75,87 +84,281 @@ impl IntcodeOperation {
     })
   }
 
+  /// Adds two parameters together and stores sum in program memory
+  fn op_add(&self, mem: &mut Vec<i32>, ip: usize) -> Result<usize, &'static str> {
+    // get first parameter
+    let addr_l = match self.modes[0] {
+      // position mode
+      0 => mem[ip + 1] as isize,
+      // immediate mode
+      1 => ip as isize + 1,
+      // return -1 for unrecognized mode
+      _ => -1,
+    };
+    if addr_l == -1 {
+      return Err("Unrecognized mode for first parameter of add operation.");
+    }
+    let op_l = mem[addr_l as usize];
 
-  /// Performs the current Intcode operation using the Intcode program memory
-  fn perform(&self, mem: &mut Vec<i32>, ip: usize) -> Result<(), &'static str> {
-    if self.opcode == 1 || self.opcode == 2 {
-      // get first parameter of operation
-      let addr_l = match self.modes[0] {
-        // position mode
-        0 => mem[ip + 1] as isize,
-        // immediate mode
-        1 => ip as isize + 1,
-        // return -1 for any unrecognized mode
-        _ => -1,
-      };
-      if addr_l == -1 {
-        if self.opcode == 1 {
-          return Err("Invalid mode for second parameter of addition operation.");
-        } else {
-          return Err("Invalid mode for second parameter of multiplication operation.");
-        }
-      }
-      let op_l = mem[addr_l as usize];
+    // get second parameter
+    let addr_r = match self.modes[1] {
+      // position mode
+      0 => mem[ip + 2] as isize,
+      // immediate mode
+      1 => ip as isize + 2,
+      // return -1 for unrecognized mode
+      _ => -1,
+    };
+    if addr_r == -1 {
+      return Err("Unrecognized mode for second parameter of add operation.");
+    }
+    let op_r = mem[addr_r as usize];
 
-      // get second parameter of operation
-      let addr_r = match self.modes[1] {
-        // position mode
-        0 => mem[ip + 2] as isize,
-        // immediate mode
-        1 => ip as isize + 2,
-        // return -1 for any unrecognized mode
-        _ => -1,
-      };
-      if addr_r == -1 {
-        if self.opcode == 1 {
-          return Err("Invalid mode for second parameter of addition operation.");
-        } else {
-          return Err("Invalid mode for second parameter of multiplication operation.");
-        }
-      }
-      let op_r = mem[addr_r as usize];
+    let store_addr = mem[ip + 3] as usize;
+    mem[store_addr] = op_l + op_r;
 
-      // perform operation
-      let store_addr = mem[ip + 3] as usize;
-      if self.opcode == 1 {
-        // opcode 1: store sum of two parameters
-        mem[store_addr] = op_l + op_r;
-      } else {
-        // opcode 2: store product of two parameters
-        mem[store_addr] = op_l * op_r;
-      }
-    } else if self.opcode == 3 {
-      // get integer as input from stdin (ignore newline characters)
-      let mut input = String::new();
-      println!("Enter an integer: ");
-      io::stdin()
-        .read_line(&mut input)
-        .expect("Failed to read input.");
-      let value = input[..(input.len() - 2)].parse::<i32>().unwrap();
+    Ok(ip + self.len)
+  }
 
-      // store value at address (first parameter)
-      let addr = mem[ip + 1] as usize;
-      mem[addr] = value;
-    } else if self.opcode == 4 {
-      // get value from memory
-      let addr = match self.modes[0] {
-        // position mode
-        0 => mem[ip + 1] as isize,
-        // immediate mode
-        1 => ip as isize + 1,
-        // return -1 for any unrecognized mode
-        _ => -1,
-      };
-      if addr == -1 {
-        return Err("Invalid mode for parameter of output operation.");
-      }
-      let value = mem[addr as usize];
+  /// Multiplies two parameters together and store product in program memory
+  fn op_mult(&self, mem: &mut Vec<i32>, ip: usize) -> Result<usize, &'static str> {
+    // get first parameter
+    let addr_l = match self.modes[0] {
+      // position mode
+      0 => mem[ip + 1] as isize,
+      // immediate mode
+      1 => ip as isize + 1,
+      // return -1 for unrecognized mode
+      _ => -1,
+    };
+    if addr_l == -1 {
+      return Err("Unrecognized mode for first parameter of multiply operation.");
+    }
+    let op_l = mem[addr_l as usize];
 
-      // print value to stdout
-      println!("Program outputted value: {}", value);
+    // get second parameter
+    let addr_r = match self.modes[1] {
+      // position mode
+      0 => mem[ip + 2] as isize,
+      // immediate mode
+      1 => ip as isize + 2,
+      // return -1 for unrecognized mode
+      _ => -1,
+    };
+    if addr_r == -1 {
+      return Err("Unrecognized mode for second parameter of multiply operation.");
+    }
+    let op_r = mem[addr_r as usize];
+
+    let store_addr = mem[ip + 3] as usize;
+    mem[store_addr] = op_l * op_r;
+    Ok(ip + self.len)
+  }
+
+  /// Receives integer input from user and stores in program memory
+  fn op_input(&self, mem: &mut Vec<i32>, ip: usize) -> Result<usize, &'static str> {
+    let mut input = String::new();
+    println!("Enter an integer:");
+    io::stdin()
+      .read_line(&mut input)
+      .expect("Failed to read input.");
+    let value = input[..(input.len() - 2)].parse::<i32>().unwrap();
+
+    let store_addr = mem[ip + 1] as usize;
+    mem[store_addr] = value;
+    Ok(ip + self.len)
+  }
+
+  /// Retrieves value from program memory and outputs to console
+  fn op_output(&self, mem: &mut Vec<i32>, ip: usize) -> Result<usize, &'static str> {
+    let addr = match self.modes[0] {
+      // position mode
+      0 => mem[ip + 1] as isize,
+      // immediate mode
+      1 => ip as isize + 1,
+      // return -1 for unrecognized mode
+      _ => -1,
+    };
+    if addr == -1 {
+      return Err("Unrecognized mode for output operation address.");
+    }
+    let value = mem[addr as usize];
+    println!("Program emitted value: {}", value);
+    Ok(ip + self.len)
+  }
+
+  /// Jumps to address given by second parameter if first parameter is non-zero
+  fn op_jump_true(&self, mem: &mut Vec<i32>, ip: usize) -> Result<usize, &'static str> {
+    // get value
+    let addr_c = match self.modes[0] {
+      // position mode
+      0 => mem[ip + 1] as isize,
+      // immediate mode
+      1 => ip as isize + 1,
+      // return -1 for unrecognized mode
+      _ => -1,
+    };
+    if addr_c == -1 {
+      return Err("Unrecognized mode for jump operation value.");
+    }
+    let op_c = mem[addr_c as usize];
+
+    // get jump address
+    let addr_j = match self.modes[1] {
+      // position mode
+      0 => mem[ip + 2] as isize,
+      // immediate mode
+      1 => ip as isize + 2,
+      // return -1 for unrecognized mode
+      _ => -1,
+    };
+    if addr_j == -1 {
+      return Err("Unrecognized mode for jump operation address.");
+    }
+    let op_j = mem[addr_j as usize];
+
+    if op_c != 0 {
+      return Ok(op_j as usize);
     }
 
-    Ok(())
+    Ok(ip + self.len)
+  }
+
+  /// Jumps to address given by second parameter if first parameter is zero
+  fn op_jump_false(&self, mem: &mut Vec<i32>, ip: usize) -> Result<usize, &'static str> {
+    // get value
+    let addr_c = match self.modes[0] {
+      // position mode
+      0 => mem[ip + 1] as isize,
+      // immediate mode
+      1 => ip as isize + 1,
+      // return -1 for unrecognized mode
+      _ => -1,
+    };
+    if addr_c == -1 {
+      return Err("Unrecognized mode for jump operation value.");
+    }
+    let op_c = mem[addr_c as usize];
+
+    // get jump address
+    let addr_j = match self.modes[1] {
+      // position mode
+      0 => mem[ip + 2] as isize,
+      // immediate mode
+      1 => ip as isize + 2,
+      // return -1 for unrecognized mode
+      _ => -1,
+    };
+    if addr_j == -1 {
+      return Err("Unrecognized mode for jump operation address.");
+    }
+    let op_j = mem[addr_j as usize];
+
+    if op_c == 0 {
+      return Ok(op_j as usize);
+    }
+    Ok(ip + self.len)
+  }
+
+  /// Stores 1 in program memory if first parameter is less than second parameter; otherwise 0
+  fn op_less_than(&self, mem: &mut Vec<i32>, ip: usize) -> Result<usize, &'static str> {
+    // get first parameter
+    let addr_l = match self.modes[0] {
+      // position mode
+      0 => mem[ip + 1] as isize,
+      // immediate mode
+      1 => ip as isize + 1,
+      // return -1 for unrecognized mode
+      _ => -1,
+    };
+    if addr_l == -1 {
+      return Err("Unrecognized mode for first parameter of less than operation.");
+    }
+    let op_l = mem[addr_l as usize];
+
+    // get second parameter
+    let addr_r = match self.modes[1] {
+      // position mode
+      0 => mem[ip + 2] as isize,
+      // immediate mode
+      1 => ip as isize + 2,
+      // return -1 for unrecognized mode
+      _ => -1,
+    };
+    if addr_r == -1 {
+      return Err("Unrecognized mode for second parameter of less than operation.");
+    }
+    let op_r = mem[addr_r as usize];
+
+    let store_addr = mem[ip + 3] as usize;
+    if op_l < op_r {
+      mem[store_addr] = 1;
+    } else {
+      mem[store_addr] = 0;
+    }
+    Ok(ip + self.len)
+  }
+
+  /// Stores 1 in program memory if first two parameters are equal; otherwise 0
+  fn op_equals(&self, mem: &mut Vec<i32>, ip: usize) -> Result<usize, &'static str> {
+    // get first parameter
+    let addr_l = match self.modes[0] {
+      // position mode
+      0 => mem[ip + 1] as isize,
+      // immediate mode
+      1 => ip as isize + 1,
+      // return -1 for unrecognized mode
+      _ => -1,
+    };
+    if addr_l == -1 {
+      return Err("Unrecognized mode for first parameter of equals operation.");
+    }
+    let op_l = mem[addr_l as usize];
+
+    // get second parameter
+    let addr_r = match self.modes[1] {
+      // position mode
+      0 => mem[ip + 2] as isize,
+      // immediate mode
+      1 => ip as isize + 2,
+      // return -1 for unrecognized mode
+      _ => -1,
+    };
+    if addr_r == -1 {
+      return Err("Unrecognized mode for second parameter of equals operation.");
+    }
+    let op_r = mem[addr_r as usize];
+
+    let store_addr = mem[ip + 3] as usize;
+    if op_l == op_r {
+      mem[store_addr] = 1;
+    } else {
+      mem[store_addr] = 0;
+    }
+    Ok(ip + self.len)
+  }
+
+  /// Performs the current Intcode operation using the Intcode program memory
+  fn perform(&self, mem: &mut Vec<i32>, ip: usize) -> Result<usize, &'static str> {
+    if self.opcode == 1 {
+      return self.op_add(mem, ip);
+    } else if self.opcode == 2 {
+      return self.op_mult(mem, ip);
+    } else if self.opcode == 3 {
+      return self.op_input(mem, ip);
+    } else if self.opcode == 4 {
+      return self.op_output(mem, ip);
+    } else if self.opcode == 5 {
+      return self.op_jump_true(mem, ip);
+    } else if self.opcode == 6 {
+      return self.op_jump_false(mem, ip);
+    } else if self.opcode == 7 {
+      return self.op_less_than(mem, ip);
+    } else if self.opcode == 8 {
+      return self.op_equals(mem, ip);
+    }
+
+    Err("Invalid opcode.")
   }
 }
 
@@ -198,13 +401,14 @@ impl IntcodeProgram {
       }
 
       // perform current operation
-      if let Err(e) = cur_op.perform(&mut self.memory, ip) {
+      let result = cur_op.perform(&mut self.memory, ip);
+      if let Err(e) = result {
         eprintln!("Operation failed: {}", e);
         return Err("Operation failed during program execution.");
+      } else if let Ok(new_pos) = result {
+        // update instruction pointer
+        ip = new_pos;
       };
-
-      // advance instruction pointer by length of current operation
-      ip += cur_op.len;
     }
 
     Ok(())
