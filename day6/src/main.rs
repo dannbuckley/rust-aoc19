@@ -1,3 +1,5 @@
+use array_tool::vec::Intersect;
+use array_tool::vec::Uniq;
 use matrix::prelude::*;
 use priority_queue::PriorityQueue;
 use std::collections::HashMap;
@@ -59,6 +61,12 @@ struct OrbitMap {
     planets: HashMap<String, usize>,
     /// Collection of orbits between the planets in the map
     orbits: Vec<(usize, usize)>,
+    /// Graph representation of orbit map
+    orbit_map_graph: Compressed<u8>,
+    /// Distances to every planet from the center of mass
+    distances: Vec<u16>,
+    /// Second to last planet on the path to each planet
+    penultimates: Vec<isize>,
 }
 
 impl OrbitMap {
@@ -105,43 +113,86 @@ impl OrbitMap {
             orbits.push((id_orbited, id_orbiting));
         }
 
-        OrbitMap { planets, orbits }
+        // construct graph of orbit map
+        let mut orbit_map_graph = Compressed::<u8>::zero((i, i));
+        for orbit in orbits.to_vec() {
+            orbit_map_graph.set(orbit, 1);
+        }
+
+        // apply Dijkstra's algorithm to compute
+        // distances and penultimate vertices
+        let (distances, penultimates) = dijkstra(&orbit_map_graph, 0);
+
+        OrbitMap {
+            planets,
+            orbits,
+            orbit_map_graph,
+            distances,
+            penultimates,
+        }
     }
 
     /// Computes the orbit count checksum for this orbit map
     fn compute_orbit_count_checksum(&self) -> u32 {
-        // initialize n x n graph of orbits
-        let n = self.planets.len();
-        let mut orbit_map_graph = Compressed::<u8>::zero((n, n));
-
-        // set weight of all orbits to 1
-        for orbit in self.orbits.to_vec() {
-            orbit_map_graph.set(orbit, 1);
-        }
-
-        // apply Dijkstra's algorithm to orbit graph
-        // (use center of mass as source vertex)
-        let (d, _) = dijkstra(&orbit_map_graph, 0);
-
-        // compute orbit count checksum
         let mut checksum: u32 = 0;
         for value in self.planets.values() {
-            checksum += d[*value] as u32;
+            checksum += self.distances[*value] as u32;
         }
         checksum
+    }
+
+    /// Computes the number of orbit transfers required to get from you to santa
+    fn compute_orbit_transfers(&self) -> usize {
+        // get positions of you and santa
+        let you_index = *self.planets.get(&"YOU".to_owned()).unwrap();
+        let san_index = *self.planets.get(&"SAN".to_owned()).unwrap();
+
+        // compute path from you to center of mass (excluding your position)
+        let mut path_to_you: Vec<usize> = vec![you_index];
+        loop {
+            let next_planet: usize = path_to_you[path_to_you.len() - 1];
+            if next_planet == 0 {
+                break;
+            }
+            path_to_you.push(self.penultimates[next_planet] as usize);
+        }
+        path_to_you.remove(0);
+
+        // compute path from santa to center of mass (excluding santa's position)
+        let mut path_to_san: Vec<usize> = vec![san_index];
+        loop {
+            let next_planet: usize = path_to_san[path_to_san.len() - 1];
+            if next_planet == 0 {
+                break;
+            }
+            path_to_san.push(self.penultimates[next_planet] as usize);
+        }
+        path_to_san.remove(0);
+
+        // compute intersection of the two paths
+        let path_intersection = path_to_you.intersect(path_to_san.to_vec());
+
+        // compute unique values in the two paths
+        let you_uniq = path_to_you.uniq(path_intersection.to_vec());
+        let san_uniq = path_to_san.uniq(path_intersection.to_vec());
+
+        // # of orbit transfers = sum of path lengths
+        you_uniq.len() + san_uniq.len()
     }
 }
 
 fn main() {
-    // compute checksum for test orbit map
+    // compute checksum and transfers for test orbit map
     let test_lines: Vec<&str> = vec![
-        "COM)B", "B)C", "C)D", "D)E", "E)F", "B)G", "G)H", "D)I", "E)J", "J)K", "K)L",
+        "COM)B", "B)C", "C)D", "D)E", "E)F", "B)G", "G)H", "D)I", "E)J", "J)K", "K)L", "K)YOU",
+        "I)SAN",
     ];
     let test_map = OrbitMap::new(&test_lines);
-    let test_checksum = test_map.compute_orbit_count_checksum();
-    assert_eq!(test_checksum, 42);
     println!("Test map: {:?}", test_map);
+    let test_checksum = test_map.compute_orbit_count_checksum();
     println!("Test checksum: {}", test_checksum);
+    let test_transfers = test_map.compute_orbit_transfers();
+    println!("Test orbit transfers: {}", test_transfers);
 
     // read in problem input
     let args: Vec<String> = env::args().collect();
@@ -149,10 +200,14 @@ fn main() {
     let mut prob_data = String::new();
     f.read_to_string(&mut prob_data)
         .expect("Something went wrong while reading the file!");
-    // compute problem checksum
+
+    // create orbit map for problem input
     println!("Creating map for problem input...");
     let prob_map = OrbitMap::new(&prob_data.lines().collect());
-    println!("Computing checksum for problem input...");
+
+    // compute problem checksum and transfers
     let prob_checksum = prob_map.compute_orbit_count_checksum();
     println!("Problem checksum: {}", prob_checksum);
+    let prob_transfers = prob_map.compute_orbit_transfers();
+    println!("Problem transfers: {}", prob_transfers);
 }
