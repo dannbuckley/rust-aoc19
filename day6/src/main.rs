@@ -1,5 +1,4 @@
-use array_tool::vec::Intersect;
-use array_tool::vec::Uniq;
+use array_tool::vec::{Intersect, Uniq};
 use matrix::prelude::*;
 use priority_queue::PriorityQueue;
 use std::collections::HashMap;
