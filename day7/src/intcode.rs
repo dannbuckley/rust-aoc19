@@ -162,11 +162,13 @@ impl IntcodeOperation {
       ProgramInputMode::Provided => {
         value = prg.input[prg.input_pointer];
         prg.input_pointer += 1;
-      },
-      ProgramInputMode::User => {        
+      }
+      ProgramInputMode::User => {
         let mut input = String::new();
         println!("Enter an integer:");
-        io::stdin().read_line(&mut input).expect("Failed to read input.");
+        io::stdin()
+          .read_line(&mut input)
+          .expect("Failed to read input.");
         value = input[..(input.len() - 2)].parse::<i32>().unwrap();
       }
     };
@@ -192,7 +194,7 @@ impl IntcodeOperation {
     let value = prg.memory[addr as usize];
     match prg.input_mode {
       ProgramInputMode::Provided => prg.output.push(value),
-      ProgramInputMode::User => println!("Program emitted value: {}", value)
+      ProgramInputMode::User => println!("Program emitted value: {}", value),
     };
     Ok(ip + self.len)
   }
@@ -381,10 +383,12 @@ enum ProgramInputMode {
 #[derive(Debug)]
 pub struct IntcodeProgram {
   memory: Vec<i32>,
+  instruction_pointer: usize,
   input_mode: ProgramInputMode,
   input: Vec<i32>,
   input_pointer: usize,
   pub output: Vec<i32>,
+  pub active: bool,
 }
 
 impl IntcodeProgram {
@@ -406,7 +410,7 @@ impl IntcodeProgram {
     let values: Vec<_> = data.split(',').collect();
     let mut memory: Vec<i32> = Vec::<i32>::new();
 
-    // parse value strings as 32-bit unsigned ints
+    // parse value strings as 32-bit signed ints
     // and push to program memory vector
     for value in values {
       let parsed = value.parse::<i32>().unwrap();
@@ -415,35 +419,84 @@ impl IntcodeProgram {
 
     Ok(IntcodeProgram {
       memory,
+      instruction_pointer: 0,
       input_mode,
       input,
       input_pointer,
       output,
+      active: true,
     })
   }
 
   /// Executes the IntcodeProgram to completion
   pub fn run(&mut self) -> Result<(), &'static str> {
-    // initialize instruction pointer to 0
-    let mut ip: usize = 0;
     loop {
-      let cur_op = IntcodeOperation::new(self.memory[ip] as u32).unwrap();
+      let cur_op = IntcodeOperation::new(self.memory[self.instruction_pointer] as u32).unwrap();
 
       // quit loop on exit opcode
       if cur_op.opcode == 99 {
+        self.active = false;
         break;
       }
 
       // perform current operation
-      let result = cur_op.perform(self, ip);
+      let result = cur_op.perform(self, self.instruction_pointer);
       if let Err(e) = result {
         eprintln!("Operation failed: {}", e);
         return Err("Operation failed during program execution.");
       } else if let Ok(new_pos) = result {
         // update instruction pointer
-        ip = new_pos;
+        self.instruction_pointer = new_pos;
       };
     }
+
+    Ok(())
+  }
+
+  /// Executes the IntcodeProgram until a read operation is encountered
+  pub fn run_until_input(&mut self) -> Result<(), &'static str> {
+    loop {
+      let cur_op = IntcodeOperation::new(self.memory[self.instruction_pointer] as u32).unwrap();
+
+      // quit loop on exit and read opcodes
+      if cur_op.opcode == 99 || cur_op.opcode == 3 {
+        if cur_op.opcode == 99 {
+          self.active = false;
+        }
+        break;
+      }
+
+      // perform current operation
+      let result = cur_op.perform(self, self.instruction_pointer);
+      if let Err(e) = result {
+        eprintln!("Operation failed: {}", e);
+        return Err("Operation failed during program execution.");
+      } else if let Ok(new_pos) = result {
+        // update instruction pointer
+        self.instruction_pointer = new_pos;
+      };
+    }
+
+    Ok(())
+  }
+
+  /// Manually performs read operation while program is waiting for input
+  pub fn inject_input(&mut self, value: i32) -> Result<(), &'static str> {
+    let read_op = IntcodeOperation::new(self.memory[self.instruction_pointer] as u32).unwrap();
+    if read_op.opcode != 3 {
+      return Err("Can only inject input when program is performing a read instruction!");
+    }
+
+    self.input.push(value);
+    self.input_pointer = self.input.len() - 1;
+
+    let result = read_op.perform(self, self.instruction_pointer);
+    if let Err(e) = result {
+      eprintln!("Read operation failed: {}", e);
+      return Err(e);
+    } else if let Ok(new_pos) = result {
+      self.instruction_pointer = new_pos;
+    };
 
     Ok(())
   }
