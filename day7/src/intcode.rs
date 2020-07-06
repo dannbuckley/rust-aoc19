@@ -508,7 +508,7 @@ mod tests {
   #[test]
   fn mult_op_with_modes() {
     // execute program "1002,4,3,4,33"
-    let mut prg = IntcodeProgram::new(&"1002,4,3,4,33".to_owned()).unwrap();
+    let mut prg = IntcodeProgram::new(&"1002,4,3,4,33".to_owned(), None).unwrap();
     assert_eq!(prg.memory, vec![1002, 4, 3, 4, 33]);
     assert_eq!(prg.run().unwrap(), ());
     assert_eq!(prg.memory, vec![1002, 4, 3, 4, 99]);
@@ -517,7 +517,7 @@ mod tests {
   #[test]
   fn add_op_with_negatives() {
     // execute program "1101,100,-1,4,0"
-    let mut prg = IntcodeProgram::new(&"1101,100,-1,4,0".to_owned()).unwrap();
+    let mut prg = IntcodeProgram::new(&"1101,100,-1,4,0".to_owned(), None).unwrap();
     assert_eq!(prg.memory, vec![1101, 100, -1, 4, 0]);
     assert_eq!(prg.run().unwrap(), ());
     assert_eq!(prg.memory, vec![1101, 100, -1, 4, 99]);
