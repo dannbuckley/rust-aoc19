@@ -38,6 +38,32 @@ struct IntcodeOperation {
   modes: Vec<u8>,
 }
 
+/// Gets address of parameter based on parameter mode
+fn get_read_addr(mem_value: i64, mode: u8, base: usize, rel_base: usize) -> isize {
+  match mode {
+    // position mode
+    0 => mem_value as isize,
+    // immediate mode
+    1 => base as isize,
+    // relative mode
+    2 => (mem_value + rel_base as i64) as isize,
+    // return -1 for unrecognized mode
+    _ => -1,
+  }
+}
+
+/// Gets address of write parameter based on parameter mode
+fn get_write_addr(mem_value: i64, mode: u8, rel_base: usize) -> isize {
+  match mode {
+    // position mode
+    0 => mem_value as isize,
+    // relative mode
+    2 => (mem_value + rel_base as i64) as isize,
+    // return -1 for unrecognized mode
+    _ => -1,
+  }
+}
+
 impl IntcodeOperation {
   /// Creates a new IntcodeOperation object from the given operation value
   fn new(op: u64) -> Result<IntcodeOperation, &'static str> {
@@ -90,45 +116,34 @@ impl IntcodeOperation {
   /// Adds two parameters together and stores sum in program memory
   fn op_add(&self, prg: &mut IntcodeProgram) -> Result<usize, &'static str> {
     // get first parameter
-    let addr_l = match self.modes[0] {
-      // position mode
-      0 => prg.get_value(prg.instruction_pointer + 1) as isize,
-      // immediate mode
-      1 => prg.instruction_pointer as isize + 1,
-      // relative mode
-      2 => (prg.get_value(prg.instruction_pointer + 1) + prg.relative_base as i64) as isize,
-      // return -1 for unrecognized mode
-      _ => -1,
-    };
+    let addr_l = get_read_addr(
+      prg.get_value(prg.instruction_pointer + 1),
+      self.modes[0],
+      prg.instruction_pointer + 1,
+      prg.relative_base,
+    );
     if addr_l == -1 {
       return Err("Unrecognized mode for first parameter of add operation.");
     }
     let op_l = prg.get_value(addr_l as usize);
 
     // get second parameter
-    let addr_r = match self.modes[1] {
-      // position mode
-      0 => prg.get_value(prg.instruction_pointer + 2) as isize,
-      // immediate mode
-      1 => prg.instruction_pointer as isize + 2,
-      // relative mode
-      2 => (prg.get_value(prg.instruction_pointer + 2) + prg.relative_base as i64) as isize,
-      // return -1 for unrecognized mode
-      _ => -1,
-    };
+    let addr_r = get_read_addr(
+      prg.get_value(prg.instruction_pointer + 2),
+      self.modes[1],
+      prg.instruction_pointer + 2,
+      prg.relative_base,
+    );
     if addr_r == -1 {
       return Err("Unrecognized mode for second parameter of add operation.");
     }
     let op_r = prg.get_value(addr_r as usize);
 
-    let store_addr = match self.modes[2] {
-      // position mode
-      0 => prg.get_value(prg.instruction_pointer + 3) as isize,
-      // relative mode
-      2 => (prg.get_value(prg.instruction_pointer + 3) + prg.relative_base as i64) as isize,
-      // return -1 for unrecognized mode
-      _ => -1,
-    };
+    let store_addr = get_write_addr(
+      prg.get_value(prg.instruction_pointer + 3),
+      self.modes[2],
+      prg.relative_base,
+    );
     if store_addr == -1 {
       return Err("Unrecognized mode for parameter of input operation.");
     }
@@ -140,45 +155,34 @@ impl IntcodeOperation {
   /// Multiplies two parameters together and store product in program memory
   fn op_mult(&self, prg: &mut IntcodeProgram) -> Result<usize, &'static str> {
     // get first parameter
-    let addr_l = match self.modes[0] {
-      // position mode
-      0 => prg.get_value(prg.instruction_pointer + 1) as isize,
-      // immediate mode
-      1 => prg.instruction_pointer as isize + 1,
-      // relative mode
-      2 => (prg.get_value(prg.instruction_pointer + 1) + prg.relative_base as i64) as isize,
-      // return -1 for unrecognized mode
-      _ => -1,
-    };
+    let addr_l = get_read_addr(
+      prg.get_value(prg.instruction_pointer + 1),
+      self.modes[0],
+      prg.instruction_pointer + 1,
+      prg.relative_base,
+    );
     if addr_l == -1 {
       return Err("Unrecognized mode for first parameter of multiply operation.");
     }
     let op_l = prg.get_value(addr_l as usize);
 
     // get second parameter
-    let addr_r = match self.modes[1] {
-      // position mode
-      0 => prg.get_value(prg.instruction_pointer + 2) as isize,
-      // immediate mode
-      1 => prg.instruction_pointer as isize + 2,
-      // relative mode
-      2 => (prg.get_value(prg.instruction_pointer + 2) + prg.relative_base as i64) as isize,
-      // return -1 for unrecognized mode
-      _ => -1,
-    };
+    let addr_r = get_read_addr(
+      prg.get_value(prg.instruction_pointer + 2),
+      self.modes[1],
+      prg.instruction_pointer + 2,
+      prg.relative_base,
+    );
     if addr_r == -1 {
       return Err("Unrecognized mode for second parameter of multiply operation.");
     }
     let op_r = prg.get_value(addr_r as usize);
 
-    let store_addr = match self.modes[2] {
-      // position mode
-      0 => prg.get_value(prg.instruction_pointer + 3) as isize,
-      // relative mode
-      2 => (prg.get_value(prg.instruction_pointer + 3) + prg.relative_base as i64) as isize,
-      // return -1 for unrecognized mode
-      _ => -1,
-    };
+    let store_addr = get_write_addr(
+      prg.get_value(prg.instruction_pointer + 3),
+      self.modes[2],
+      prg.relative_base,
+    );
     if store_addr == -1 {
       return Err("Unrecognized mode for parameter of input operation.");
     }
@@ -204,14 +208,11 @@ impl IntcodeOperation {
       }
     };
 
-    let store_addr = match self.modes[0] {
-      // position mode
-      0 => prg.get_value(prg.instruction_pointer + 1) as isize,\
-      // relative mode
-      2 => (prg.get_value(prg.instruction_pointer + 1) + prg.relative_base as i64) as isize,
-      // return -1 for unrecognized mode
-      _ => -1,
-    };
+    let store_addr = get_write_addr(
+      prg.get_value(prg.instruction_pointer + 1),
+      self.modes[0],
+      prg.relative_base,
+    );
     if store_addr == -1 {
       return Err("Unrecognized mode for parameter of input operation.");
     }
@@ -245,32 +246,24 @@ impl IntcodeOperation {
   /// Jumps to address given by second parameter if first parameter is non-zero
   fn op_jump_true(&self, prg: &mut IntcodeProgram) -> Result<usize, &'static str> {
     // get value
-    let addr_c = match self.modes[0] {
-      // position mode
-      0 => prg.get_value(prg.instruction_pointer + 1) as isize,
-      // immediate mode
-      1 => prg.instruction_pointer as isize + 1,
-      // relative mode
-      2 => (prg.get_value(prg.instruction_pointer + 1) + prg.relative_base as i64) as isize,
-      // return -1 for unrecognized mode
-      _ => -1,
-    };
+    let addr_c = get_read_addr(
+      prg.get_value(prg.instruction_pointer + 1),
+      self.modes[0],
+      prg.instruction_pointer + 1,
+      prg.relative_base,
+    );
     if addr_c == -1 {
       return Err("Unrecognized mode for jump operation value.");
     }
     let op_c = prg.get_value(addr_c as usize);
 
     // get jump address
-    let addr_j = match self.modes[1] {
-      // position mode
-      0 => prg.get_value(prg.instruction_pointer + 2) as isize,
-      // immediate mode
-      1 => prg.instruction_pointer as isize + 2,
-      // relative mode
-      2 => (prg.get_value(prg.instruction_pointer + 2) + prg.relative_base as i64) as isize,
-      // return -1 for unrecognized mode
-      _ => -1,
-    };
+    let addr_j = get_read_addr(
+      prg.get_value(prg.instruction_pointer + 2),
+      self.modes[1],
+      prg.instruction_pointer + 2,
+      prg.relative_base,
+    );
     if addr_j == -1 {
       return Err("Unrecognized mode for jump operation address.");
     }
@@ -286,32 +279,24 @@ impl IntcodeOperation {
   /// Jumps to address given by second parameter if first parameter is zero
   fn op_jump_false(&self, prg: &mut IntcodeProgram) -> Result<usize, &'static str> {
     // get value
-    let addr_c = match self.modes[0] {
-      // position mode
-      0 => prg.get_value(prg.instruction_pointer + 1) as isize,
-      // immediate mode
-      1 => prg.instruction_pointer as isize + 1,
-      // relative mode
-      2 => (prg.get_value(prg.instruction_pointer + 1) + prg.relative_base as i64) as isize,
-      // return -1 for unrecognized mode
-      _ => -1,
-    };
+    let addr_c = get_read_addr(
+      prg.get_value(prg.instruction_pointer + 1),
+      self.modes[0],
+      prg.instruction_pointer + 1,
+      prg.relative_base,
+    );
     if addr_c == -1 {
       return Err("Unrecognized mode for jump operation value.");
     }
     let op_c = prg.get_value(addr_c as usize);
 
     // get jump address
-    let addr_j = match self.modes[1] {
-      // position mode
-      0 => prg.get_value(prg.instruction_pointer + 2) as isize,
-      // immediate mode
-      1 => prg.instruction_pointer as isize + 2,
-      // relative mode
-      2 => (prg.get_value(prg.instruction_pointer + 2) + prg.relative_base as i64) as isize,
-      // return -1 for unrecognized mode
-      _ => -1,
-    };
+    let addr_j = get_read_addr(
+      prg.get_value(prg.instruction_pointer + 2),
+      self.modes[1],
+      prg.instruction_pointer + 2,
+      prg.relative_base,
+    );
     if addr_j == -1 {
       return Err("Unrecognized mode for jump operation address.");
     }
@@ -326,45 +311,34 @@ impl IntcodeOperation {
   /// Stores 1 in program memory if first parameter is less than second parameter; otherwise 0
   fn op_less_than(&self, prg: &mut IntcodeProgram) -> Result<usize, &'static str> {
     // get first parameter
-    let addr_l = match self.modes[0] {
-      // position mode
-      0 => prg.get_value(prg.instruction_pointer + 1) as isize,
-      // immediate mode
-      1 => prg.instruction_pointer as isize + 1,
-      // relative mode
-      2 => (prg.get_value(prg.instruction_pointer + 1) + prg.relative_base as i64) as isize,
-      // return -1 for unrecognized mode
-      _ => -1,
-    };
+    let addr_l = get_read_addr(
+      prg.get_value(prg.instruction_pointer + 1),
+      self.modes[0],
+      prg.instruction_pointer + 1,
+      prg.relative_base,
+    );
     if addr_l == -1 {
       return Err("Unrecognized mode for first parameter of less than operation.");
     }
     let op_l = prg.get_value(addr_l as usize);
 
     // get second parameter
-    let addr_r = match self.modes[1] {
-      // position mode
-      0 => prg.get_value(prg.instruction_pointer + 2) as isize,
-      // immediate mode
-      1 => prg.instruction_pointer as isize + 2,
-      // relative mode
-      2 => (prg.get_value(prg.instruction_pointer + 2) + prg.relative_base as i64) as isize,
-      // return -1 for unrecognized mode
-      _ => -1,
-    };
+    let addr_r = get_read_addr(
+      prg.get_value(prg.instruction_pointer + 2),
+      self.modes[1],
+      prg.instruction_pointer + 2,
+      prg.relative_base,
+    );
     if addr_r == -1 {
       return Err("Unrecognized mode for second parameter of less than operation.");
     }
     let op_r = prg.get_value(addr_r as usize);
 
-    let store_addr = match self.modes[2] {
-      // position mode
-      0 => prg.get_value(prg.instruction_pointer + 3) as isize,
-      // relative mode
-      2 => (prg.get_value(prg.instruction_pointer + 3) + prg.relative_base as i64) as isize,
-      // return -1 for unrecognized mode
-      _ => -1,
-    };
+    let store_addr = get_write_addr(
+      prg.get_value(prg.instruction_pointer + 3),
+      self.modes[2],
+      prg.relative_base,
+    );
     if store_addr == -1 {
       return Err("Unrecognized mode for parameter of input operation.");
     }
@@ -380,45 +354,34 @@ impl IntcodeOperation {
   /// Stores 1 in program memory if first two parameters are equal; otherwise 0
   fn op_equals(&self, prg: &mut IntcodeProgram) -> Result<usize, &'static str> {
     // get first parameter
-    let addr_l = match self.modes[0] {
-      // position mode
-      0 => prg.get_value(prg.instruction_pointer + 1) as isize,
-      // immediate mode
-      1 => prg.instruction_pointer as isize + 1,
-      // relative mode
-      2 => (prg.get_value(prg.instruction_pointer + 1) + prg.relative_base as i64) as isize,
-      // return -1 for unrecognized mode
-      _ => -1,
-    };
+    let addr_l = get_read_addr(
+      prg.get_value(prg.instruction_pointer + 1),
+      self.modes[0],
+      prg.instruction_pointer + 1,
+      prg.relative_base,
+    );
     if addr_l == -1 {
       return Err("Unrecognized mode for first parameter of equals operation.");
     }
     let op_l = prg.get_value(addr_l as usize);
 
     // get second parameter
-    let addr_r = match self.modes[1] {
-      // position mode
-      0 => prg.get_value(prg.instruction_pointer + 2) as isize,
-      // immediate mode
-      1 => prg.instruction_pointer as isize + 2,
-      // relative mode
-      2 => (prg.get_value(prg.instruction_pointer + 2) + prg.relative_base as i64) as isize,
-      // return -1 for unrecognized mode
-      _ => -1,
-    };
+    let addr_r = get_read_addr(
+      prg.get_value(prg.instruction_pointer + 2),
+      self.modes[1],
+      prg.instruction_pointer + 2,
+      prg.relative_base,
+    );
     if addr_r == -1 {
       return Err("Unrecognized mode for second parameter of equals operation.");
     }
     let op_r = prg.get_value(addr_r as usize);
 
-    let store_addr = match self.modes[2] {
-      // position mode
-      0 => prg.get_value(prg.instruction_pointer + 3) as isize,
-      // relative mode
-      2 => (prg.get_value(prg.instruction_pointer + 3) + prg.relative_base as i64) as isize,
-      // return -1 for unrecognized mode
-      _ => -1,
-    };
+    let store_addr = get_write_addr(
+      prg.get_value(prg.instruction_pointer + 3),
+      self.modes[2],
+      prg.relative_base,
+    );
     if store_addr == -1 {
       return Err("Unrecognized mode for parameter of input operation.");
     }
@@ -433,15 +396,12 @@ impl IntcodeOperation {
 
   /// Adjusts the program's relative base address
   fn op_adj_rel_base(&self, prg: &mut IntcodeProgram) -> Result<usize, &'static str> {
-    let addr_adj = match self.modes[0] {
-      // position mode
-      0 => prg.get_value(prg.instruction_pointer + 1) as isize,
-      // immediate mode
-      1 => prg.instruction_pointer as isize + 1,
-      // relative mode
-      2 => (prg.get_value(prg.instruction_pointer + 1) + prg.relative_base as i64) as isize,
-      _ => -1,
-    };
+    let addr_adj = get_read_addr(
+      prg.get_value(prg.instruction_pointer + 1),
+      self.modes[0],
+      prg.instruction_pointer + 1,
+      prg.relative_base,
+    );
     if addr_adj == -1 {
       return Err("Unrecognized mode for parameter of relative base adjustment operation.");
     }
